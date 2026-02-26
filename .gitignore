@@ -1,5 +1,9 @@
+#a file containing private wifi parameters
+private.h
+
 # Prerequisites
 *.d
+
 
 # Compiled Object files
 *.slo
