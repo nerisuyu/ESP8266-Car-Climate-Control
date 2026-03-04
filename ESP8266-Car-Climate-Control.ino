@@ -28,8 +28,8 @@ int pot_pos_max = 1024;
 int servo_pos_min = 1500;
 int servo_pos_max = 2380;
 
-int servo_voltage_min = -4;
-int servo_voltage_max = 1658;
+int servo_voltage_min = 844;
+int servo_voltage_max = 1453;
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -93,6 +93,47 @@ void printData(){
     Serial.print("\t");
   }
   Serial.println();
+}
+
+/////////////////////////////////////////////////////////////////
+////////SENSORS
+
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+OneWire oneWire(THERMO_PIN);
+DallasTemperature sensors(&oneWire);
+
+uint8_t sensor_1[8] = { 0x28, 0xA6, 0xC1, 0xD5, 0x0E, 0x00, 0x00, 0x6B };  // уличный
+uint8_t sensor_2[8] = { 0x28, 0xFF, 0x7D, 0x11, 0xC4, 0xA1, 0x95, 0xB7 };  //поток воздуха
+uint8_t sensor_3[8] = { 0x28, 0xFF, 0x03, 0xC3, 0x80, 0x16, 0x05, 0xAC };  //салон
+
+
+
+void findSensors() {
+  int thermo_devices_count = 0;
+  DallasTemperature sensors(&oneWire);
+  DeviceAddress Thermometer;
+  sensors.begin();
+  Serial.print("Locating devices... \n Found ");
+  thermo_devices_count = sensors.getDeviceCount();
+  Serial.print(thermo_devices_count, DEC);
+  Serial.println(" devices.");
+  Serial.println("Printing addresses...");
+  for (int i = 0; i < thermo_devices_count; i++) {
+    Serial.print("Sensor ");
+    Serial.print(i + 1);
+    Serial.print(" : ");
+    sensors.getAddress(Thermometer, i);
+    for (uint8_t i = 0; i < 8; i++)
+  {
+    Serial.print("0x");
+    if (Thermometer[i] < 0x10) Serial.print("0");
+    Serial.print(Thermometer[i], HEX);
+    if (i < 7) Serial.print(", ");
+  }
+  Serial.println("");
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -255,6 +296,10 @@ void setup() {
 
   data_array[SERVO_REAL_PERCENTAGE_ARRAY_INDEX] = 100 * (data_array[SERVO_VOLTAGE_ARRAY_INDEX] - servo_voltage_min) / (servo_voltage_max - servo_voltage_min);
   data_array[SERVO_REAL_POSITION_ARRAY_INDEX] = servo_pos_min + data_array[SERVO_REAL_PERCENTAGE_ARRAY_INDEX]*(servo_pos_max-servo_pos_min)/100;
+
+
+  findSensors();
+
 
 }
 
