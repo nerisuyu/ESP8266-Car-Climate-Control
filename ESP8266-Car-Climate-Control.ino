@@ -10,26 +10,66 @@ static inline int8_t sign(int val) {
 }
 
 
-//PIN Adresses
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////PINS
+
 #define POT_PIN A0
 #define SERVO_PIN D8
 #define THERMO_PIN D6
 #define LED 2
+#define FLASH_BUTTON_PIN 0
 
 #define IN1 D7   //"Engine On" Signal
 #define OUT1 D5  //headlights
 
+
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
-////Servo and Pot calibration
+///////////////////////////////CONFIG
 
-int pot_pos_min = 0;
-int pot_pos_max = 1024;
+#define CONFIG_ARRAY_SIZE 11
 
-int servo_pos_min = 1500;
-int servo_pos_max = 2380;
+#define SERVO_POS_MIN_CARRAY_INDEX 0
+#define SERVO_POS_MAX_CARRAY_INDEX 1
 
-int servo_voltage_min = 844;
-int servo_voltage_max = 1453;
+#define SERVO_VOLTAGE_MIN_CARRAY_INDEX 2
+#define SERVO_VOLTAGE_MAX_CARRAY_INDEX 3
+
+#define POT_POS_MIN_CARRAY_INDEX 4
+#define POT_POS_MAX_CARRAY_INDEX 5
+
+//p for parameter
+#define P_TOLERANCE_CARRAY_INDEX 6
+#define P_MAX_STEPSIZE_CARRAY_INDEX 7
+#define P_STEP_DELAY_CARRAY_INDEX 8
+#define P_OUTDOORS_T_DEPENDANCY_CARRAY_INDEX 9
+#define P_DIRECT_CONTROL_CARRAY_INDEX 10
+
+int config_array[CONFIG_ARRAY_SIZE] = {0};
+
+void reset_config(){
+  config_array[SERVO_POS_MIN_CARRAY_INDEX]=0;
+  config_array[SERVO_POS_MAX_CARRAY_INDEX]=2500;
+
+  config_array[SERVO_VOLTAGE_MIN_CARRAY_INDEX]=33;
+  config_array[SERVO_VOLTAGE_MAX_CARRAY_INDEX]=1700;
+
+  config_array[POT_POS_MIN_CARRAY_INDEX]=0;
+  config_array[POT_POS_MAX_CARRAY_INDEX]=1024;
+
+  config_array[P_TOLERANCE_CARRAY_INDEX]=3;
+  config_array[P_MAX_STEPSIZE_CARRAY_INDEX]=5;
+  config_array[P_STEP_DELAY_CARRAY_INDEX]=2000;
+  config_array[P_OUTDOORS_T_DEPENDANCY_CARRAY_INDEX]=0;
+  config_array[P_DIRECT_CONTROL_CARRAY_INDEX]=0;
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -41,22 +81,22 @@ Adafruit_ADS1015 ads;    // задаём тип АЦП
 
 #define DATA_ARRAY_SIZE 13
 
-#define OUTDOOR_T_ARRAY_INDEX 0
-#define STREAM_T_ARRAY_INDEX 1
-#define INTERIOR_T_ARRAY_INDEX 2
-#define DESIRED_STREAM_T_ARRAY_INDEX 3
-#define DESIRED_INTERIOR_T_ARRAY_INDEX 4
+#define OUTDOOR_T_DARRAY_INDEX 0
+#define STREAM_T_DARRAY_INDEX 1
+#define INTERIOR_T_DARRAY_INDEX 2
+#define DESIRED_STREAM_T_DARRAY_INDEX 3
+#define DESIRED_INTERIOR_T_DARRAY_INDEX 4
 
-#define POT_VALUE_ARRAY_INDEX 5
-#define POT_PERCENTAGE_ARRAY_INDEX 6
+#define POT_VALUE_DARRAY_INDEX 5
+#define POT_PERCENTAGE_DARRAY_INDEX 6
 
-#define SERVO_VOLTAGE_ARRAY_INDEX 7
-#define SERVO_TARGET_POSITION_ARRAY_INDEX 8
-#define SERVO_REAL_POSITION_ARRAY_INDEX 9
-#define SERVO_TARGET_PERCENTAGE_ARRAY_INDEX 10 
-#define SERVO_REAL_PERCENTAGE_ARRAY_INDEX 11
+#define SERVO_VOLTAGE_DARRAY_INDEX 7
+#define SERVO_TARGET_POSITION_DARRAY_INDEX 8
+#define SERVO_REAL_POSITION_DARRAY_INDEX 9
+#define SERVO_TARGET_PERCENTAGE_DARRAY_INDEX 10 
+#define SERVO_REAL_PERCENTAGE_DARRAY_INDEX 11
 
-#define LIGHT_LEVEL_ARRAY_INDEX 12
+#define LIGHT_LEVEL_DARRAY_INDEX 12
 
 
 #define POT_ARRAY_SIZE 5 //pot readings smoothing array size
@@ -65,14 +105,15 @@ Adafruit_ADS1015 ads;    // задаём тип АЦП
 int data_array[DATA_ARRAY_SIZE] = {0};
 
 void GetReadings() {
-
   float pot_value = readPot(analogRead(POT_PIN));
-  data_array[POT_VALUE_ARRAY_INDEX] = pot_value;
-  data_array[POT_PERCENTAGE_ARRAY_INDEX] = 100 * (pot_value - pot_pos_min) / (pot_pos_max - pot_pos_min);
+  data_array[POT_VALUE_DARRAY_INDEX] = pot_value;
+  data_array[POT_PERCENTAGE_DARRAY_INDEX] 
+  = 100 * (pot_value - config_array[POT_POS_MIN_CARRAY_INDEX]) 
+  / (config_array[POT_POS_MAX_CARRAY_INDEX] - config_array[POT_POS_MIN_CARRAY_INDEX]);
 
   float servo_voltage=ads.readADC_SingleEnded(0);
 
-  data_array[SERVO_VOLTAGE_ARRAY_INDEX]=servo_voltage;
+  data_array[SERVO_VOLTAGE_DARRAY_INDEX]=servo_voltage;
 }
 
 float readPot(int new_value) {
@@ -95,6 +136,11 @@ void printData(){
   Serial.println();
 }
 
+
+
+
+
+
 /////////////////////////////////////////////////////////////////
 ////////SENSORS
 
@@ -104,10 +150,9 @@ void printData(){
 OneWire oneWire(THERMO_PIN);
 DallasTemperature sensors(&oneWire);
 
-uint8_t sensor_1[8] = { 0x28, 0xA6, 0xC1, 0xD5, 0x0E, 0x00, 0x00, 0x6B };  // уличный
-uint8_t sensor_2[8] = { 0x28, 0xFF, 0x7D, 0x11, 0xC4, 0xA1, 0x95, 0xB7 };  //поток воздуха
-uint8_t sensor_3[8] = { 0x28, 0xFF, 0x03, 0xC3, 0x80, 0x16, 0x05, 0xAC };  //салон
-
+uint8_t sensor_outdoors[8] = { 0x28, 0xA6, 0xC1, 0xD5, 0x0E, 0x00, 0x00, 0x6B };  //OUTDOORS TEMPERATURE
+uint8_t sensor_airstream[8] = { 0x28, 0xFF, 0x7D, 0x11, 0xC4, 0xA1, 0x95, 0xB7 };  //AIR STREAM TEMPERATURE
+uint8_t sensor_interior[8] = { 0x28, 0xFF, 0x03, 0xC3, 0x80, 0x16, 0x05, 0xAC };  //INTERIOR TEMPERATURE
 
 
 void findSensors() {
@@ -136,6 +181,12 @@ void findSensors() {
   }
 }
 
+
+
+
+
+
+
 ///////////////////////////////////////////////////////////////////////////////
 ////Wifi Server
 
@@ -149,7 +200,6 @@ void findSensors() {
 #endif
 
 
-//WiFi Connection configuration
 const char *ssid = APSSID;
 const char *password = APPSK;
 
@@ -157,7 +207,6 @@ IPAddress my_ip = 0;
 ESP8266WebServer server(80);
 
 void setupWifiServer(){
-// setup WiFi Network
   Serial.println();
   Serial.println();
   Serial.println("Configuring access point...");
@@ -167,8 +216,6 @@ void setupWifiServer(){
   Serial.println(ssid);
   Serial.print("PASSWORD: ");
   Serial.println(password);
-
-  
 
   my_ip = WiFi.softAPIP();
   Serial.print("AP IP address: ");
@@ -185,8 +232,16 @@ void handleRoot() {
   server.send(200, "text/html", root_webpage);
 }
 
+
+
+
+
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
-////////Screen
+////////DISPLAY, currently not implemented but used to flush I2C when dealing with servo
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -204,9 +259,16 @@ void setupDisplay() {
   display.setCursor(0, 0);
   display.print("Hello World!");
   display.display();
-
-  //display.clearDisplay();
 }
+
+
+
+
+
+
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////
 //////Servo
@@ -216,43 +278,41 @@ void setupDisplay() {
 bool is_servo_attached=false;
 Servo my_servo;  // create servo object to control a servo
 
-#define MAX_STEP 8
+#define MAX_STEP 8            //maximum step size when moving servo slowly, used to control level of noise (bigger steps can lead to screeching)
+#define EPSILON_SERVO_POS 10   //maximum deviance between target position and real position (not in percent, in PWM frequency probably)
 
-#define EPSILON_SERVO_POS 10
-
+//slowly move servo to data_array[SERVO_TARGET_PERCENTAGE_DARRAY_INDEX] position
 void moveServo()  {
 
-  //target percentage --> target position
-  //real position --> real percentage 
-
-
-  data_array[SERVO_TARGET_POSITION_ARRAY_INDEX] = servo_pos_min + data_array[SERVO_TARGET_PERCENTAGE_ARRAY_INDEX] * (servo_pos_max-servo_pos_min)/100;
+  
 
   if(
-    abs(data_array[SERVO_TARGET_POSITION_ARRAY_INDEX]-data_array[SERVO_REAL_POSITION_ARRAY_INDEX])>EPSILON_SERVO_POS //if real servo pos differs from needed position
+    abs(data_array[SERVO_TARGET_POSITION_DARRAY_INDEX]-data_array[SERVO_REAL_POSITION_DARRAY_INDEX])>EPSILON_SERVO_POS //if real servo pos differs from needed position
     )
     {
       int new_servo_real_position=
-        data_array[SERVO_REAL_POSITION_ARRAY_INDEX]
+        data_array[SERVO_REAL_POSITION_DARRAY_INDEX]
         +sign(
-          data_array[SERVO_TARGET_POSITION_ARRAY_INDEX]-data_array[SERVO_REAL_POSITION_ARRAY_INDEX]
+          data_array[SERVO_TARGET_POSITION_DARRAY_INDEX]-data_array[SERVO_REAL_POSITION_DARRAY_INDEX]
           )
         *constrain(
           abs(
-            data_array[SERVO_TARGET_POSITION_ARRAY_INDEX]-data_array[SERVO_REAL_POSITION_ARRAY_INDEX]
+            data_array[SERVO_TARGET_POSITION_DARRAY_INDEX]-data_array[SERVO_REAL_POSITION_DARRAY_INDEX]
             )
             ,1,MAX_STEP
-          );//последняя цифра -максимальный шаг движения сервы за один цикл
+          );
 
 
     my_servo.writeMicroseconds(new_servo_real_position);
     display.display();
 
-    data_array[SERVO_REAL_POSITION_ARRAY_INDEX]=new_servo_real_position;
-    data_array[SERVO_REAL_PERCENTAGE_ARRAY_INDEX]=100*(new_servo_real_position-servo_pos_min)/(servo_pos_max-servo_pos_min);
+    data_array[SERVO_REAL_POSITION_DARRAY_INDEX]=new_servo_real_position;
+    data_array[SERVO_REAL_PERCENTAGE_DARRAY_INDEX]
+      = 100*(new_servo_real_position-config_array[SERVO_POS_MIN_CARRAY_INDEX])
+      /(config_array[SERVO_POS_MAX_CARRAY_INDEX]-config_array[SERVO_POS_MIN_CARRAY_INDEX]);
 
     if (is_servo_attached == false) {
-      my_servo.attach(SERVO_PIN, 500, 2500);
+      my_servo.attach(SERVO_PIN, 0, 2500);
       is_servo_attached = true;
       Serial.println(" servo attached ");
     }
@@ -265,19 +325,252 @@ void moveServo()  {
       display.display();
       is_servo_attached = false;
       Serial.println(" servo detached ");
-
     }
   }
 }
 
 
+/////////////////////////////////////////////////////////////////////////////////
+////////////// CLIMATE CONTROL
+
+void ChooseTargetServoPosition(){
+  //DIRECT CONTROL
+    if(config_array[P_DIRECT_CONTROL_CARRAY_INDEX]==1)
+    {
+      data_array[SERVO_TARGET_PERCENTAGE_DARRAY_INDEX]=data_array[POT_PERCENTAGE_DARRAY_INDEX];
+    }else{
+      StepSearch();
+
+      
+    }
+    data_array[SERVO_TARGET_POSITION_DARRAY_INDEX] 
+    = config_array[SERVO_POS_MIN_CARRAY_INDEX] 
+    + data_array[SERVO_TARGET_PERCENTAGE_DARRAY_INDEX] * (config_array[SERVO_POS_MAX_CARRAY_INDEX] - config_array[SERVO_POS_MIN_CARRAY_INDEX] )/100;
+}
+
+
+void StepSearch(){
+
+}
+
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
-//////main
+////////////CALIBRATION MODE
+
+#define SERVO_MIDDLE_POSITION 2000
+
+
+bool isCalibrationModeOn = false;
+
+//CM for calibration mode
+int CM_servo_pos_min=0;
+int CM_servo_pos_max=0;
+
+int CM_servo_voltage_min=0;
+int CM_servo_voltage_max=0;
+
+int CM_pot_pos_min=0;
+int CM_pot_pos_max=0;
+
+void StartCalibration(){
+  isCalibrationModeOn = true;
+  CM_servo_pos_min=SERVO_MIDDLE_POSITION;
+  CM_servo_pos_max=SERVO_MIDDLE_POSITION;
+
+  CM_servo_voltage_min=data_array[SERVO_VOLTAGE_DARRAY_INDEX];
+  CM_servo_voltage_max=data_array[SERVO_VOLTAGE_DARRAY_INDEX];
+
+  CM_pot_pos_min=data_array[POT_VALUE_DARRAY_INDEX];
+  CM_pot_pos_max=data_array[POT_VALUE_DARRAY_INDEX];
+
+  Serial.println("");
+  Serial.println("Starting Calibration...");
+  Serial.println("");
+}
+
+
+void CalibrationLoop(){
+  
+  
+  CM_pot_pos_min=min(CM_pot_pos_min,data_array[POT_VALUE_DARRAY_INDEX]);
+  CM_pot_pos_max=max(CM_pot_pos_max,data_array[POT_VALUE_DARRAY_INDEX]);
+
+  CM_servo_voltage_min=min(CM_servo_voltage_min,data_array[SERVO_VOLTAGE_DARRAY_INDEX]);
+  CM_servo_voltage_max=max(CM_servo_voltage_max,data_array[SERVO_VOLTAGE_DARRAY_INDEX]);
+
+  
+  Serial.println("");
+  Serial.print("Servo pos:");
+  Serial.print(CM_servo_pos_min);
+  Serial.print("\t-\t");
+  Serial.print(CM_servo_pos_max);
+
+  Serial.print("\t\tServo voltage:");
+  Serial.print(CM_servo_voltage_min);
+  Serial.print("\t-\t");
+  Serial.print(CM_servo_voltage_max);
+
+  Serial.print("\t\tPot position:");
+  Serial.print(CM_pot_pos_min);
+  Serial.print("\t-\t");
+  Serial.println(CM_pot_pos_max);
+
+  if(digitalRead(FLASH_BUTTON_PIN)==LOW){
+
+    EndCalibration();
+  }
+}
+
+#define VOLTAGE_EPSILON 5
+#define VOLTAGE_BORDERS 30
+#define STEP 5
+#define T 25000
+
+void EndCalibration(){
+
+  CM_servo_voltage_min=max(CM_servo_voltage_min,35);
+  CM_servo_voltage_max=min(CM_servo_voltage_max,1600);
+  
+
+  Serial.println("");
+  Serial.println("Ending Calibration...");
+  Serial.println("");
+
+
+  //moveServo to middle position
+  my_servo.attach(SERVO_PIN, 0, 2500);
+  is_servo_attached = true;
+  Serial.println(" servo attached ");
+  delay(100);
+  my_servo.writeMicroseconds(CM_servo_pos_min);
+  display.display();
+  delay(500);
+
+
+  static int timer=millis();
+  while(millis()-timer<T){
+    
+
+
+    Serial.println("");
+    Serial.print(millis()-timer);
+    Serial.print("/");
+    Serial.print(T);
+    
+    Serial.print("Servo pos:");
+    Serial.print(CM_servo_pos_min);
+    Serial.print(" - ");
+    Serial.print(CM_servo_pos_max);
+
+    Serial.print("\t\tServo voltage:\t");
+
+    Serial.print(data_array[SERVO_VOLTAGE_DARRAY_INDEX]);
+    Serial.print("<< | ");
+    Serial.print(CM_servo_voltage_min);
+    Serial.print(" - ");
+    Serial.println(CM_servo_voltage_max);
+
+    data_array[SERVO_TARGET_POSITION_DARRAY_INDEX]=CM_servo_pos_min;
+    CM_servo_pos_min-=STEP;
+    my_servo.writeMicroseconds(CM_servo_pos_min);
+    display.display();
+    GetReadings();
+
+    if(data_array[SERVO_VOLTAGE_DARRAY_INDEX]-CM_servo_voltage_min<VOLTAGE_EPSILON){
+
+      Serial.println("Found minimum...");
+      break;
+    }
+  }
+  CM_servo_pos_max=CM_servo_pos_min;
+  CM_servo_voltage_min=data_array[SERVO_VOLTAGE_DARRAY_INDEX];
+
+  timer=millis();
+  while(millis()-timer<T){
+    
+
+
+    Serial.println("");
+    Serial.print(millis()-timer);
+    Serial.print("/");
+    Serial.print(T);
+    
+    Serial.print("Servo pos:");
+    Serial.print(CM_servo_pos_min);
+    Serial.print(" - ");
+    Serial.print(CM_servo_pos_max);
+
+    Serial.print("\t\tServo voltage:\t");
+
+    Serial.print(data_array[SERVO_VOLTAGE_DARRAY_INDEX]);
+    Serial.print(">> | ");
+    Serial.print(CM_servo_voltage_min);
+    Serial.print(" - ");
+    Serial.println(CM_servo_voltage_max);
+
+    data_array[SERVO_TARGET_POSITION_DARRAY_INDEX]=CM_servo_pos_max;
+    CM_servo_pos_max+=STEP;
+    my_servo.writeMicroseconds(CM_servo_pos_max);
+    display.display();
+    GetReadings();
+
+    if(CM_servo_voltage_max - data_array[SERVO_VOLTAGE_DARRAY_INDEX] < VOLTAGE_EPSILON){
+
+      Serial.println("Found maximum...");
+      break;
+    }
+  }
+  CM_servo_voltage_max=data_array[SERVO_VOLTAGE_DARRAY_INDEX];
+
+
+  Serial.println("End");
+  my_servo.detach();
+  is_servo_attached = false;
+
+
+  data_array[SERVO_REAL_POSITION_DARRAY_INDEX]=CM_servo_pos_min;
+
+
+
+  Serial.println("");
+  Serial.print("Servo pos:");
+  Serial.print(CM_servo_pos_min);
+  Serial.print("-");
+  Serial.print(CM_servo_pos_max);
+
+  Serial.print("\t\tServo voltage:");
+  Serial.print(CM_servo_voltage_min);
+  Serial.print("-");
+  Serial.print(CM_servo_voltage_max);
+
+  Serial.print("\t\tPot position:");
+  Serial.print(CM_pot_pos_min);
+  Serial.print("-");
+  Serial.println(CM_pot_pos_max);
+
+
+  isCalibrationModeOn = false;
+  
+}
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//////MAIN BLOCK
 
 void setup() {
   Serial.begin(9600);
   delay(500);
+  pinMode(FLASH_BUTTON_PIN, INPUT_PULLUP);
 
   setupWifiServer();
 
@@ -290,27 +583,47 @@ void setup() {
   ads.setGain(GAIN_ONE);
   Serial.println("Initialization complete");
 
+  reset_config();
+
   setupDisplay();
 
   GetReadings();
 
-  data_array[SERVO_REAL_PERCENTAGE_ARRAY_INDEX] = 100 * (data_array[SERVO_VOLTAGE_ARRAY_INDEX] - servo_voltage_min) / (servo_voltage_max - servo_voltage_min);
-  data_array[SERVO_REAL_POSITION_ARRAY_INDEX] = servo_pos_min + data_array[SERVO_REAL_PERCENTAGE_ARRAY_INDEX]*(servo_pos_max-servo_pos_min)/100;
+
+  //figure out initial servo position
+  data_array[SERVO_REAL_PERCENTAGE_DARRAY_INDEX] 
+    = 100 * (data_array[SERVO_VOLTAGE_DARRAY_INDEX] - config_array[SERVO_VOLTAGE_MIN_CARRAY_INDEX]) 
+    / (config_array[SERVO_VOLTAGE_MAX_CARRAY_INDEX] - config_array[SERVO_VOLTAGE_MIN_CARRAY_INDEX]);
+  
+  data_array[SERVO_REAL_POSITION_DARRAY_INDEX]
+    = config_array[SERVO_POS_MIN_CARRAY_INDEX]
+    + data_array[SERVO_REAL_PERCENTAGE_DARRAY_INDEX]
+    * (config_array[SERVO_POS_MAX_CARRAY_INDEX]-config_array[SERVO_POS_MIN_CARRAY_INDEX])/100;
+
+
 
 
   findSensors();
 
+  Serial.println();
+  Serial.println("Setup Complete");
 
+
+  StartCalibration();
+  delay(1000);
 }
 
 void loop() {
-  //server.handleClient();
+  server.handleClient();
 
-  //delay(100);
-  printData();
+  //printData();
   GetReadings();
   
-  data_array[SERVO_TARGET_PERCENTAGE_ARRAY_INDEX]=data_array[POT_PERCENTAGE_ARRAY_INDEX];
-
-  moveServo();
+  if(isCalibrationModeOn==true){
+    CalibrationLoop();
+  }
+  else{
+    ChooseTargetServoPosition();
+    moveServo();
+  }
 }
